@@ -73,6 +73,42 @@
         </div>
     </div>
 </div>
+<!-- MODALE PRENOTAZIONE -->
+<div class="modal fade" id="modalPrenota" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+  
+        <div class="modal-header">
+          <h5 class="modal-title">Conferma Prenotazione</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+  
+        <div class="modal-body">
+  
+          <h5 class="mb-3">Riepilogo</h5>
+          <div id="riepilogo" class="p-2 bg-light rounded border"></div>
+  
+          <hr>
+  
+          <h5 class="mb-2">I tuoi dati</h5>
+  
+          <label class="form-label mt-2">Nome Completo</label>
+          <input id="nome_ospite" type="text" class="form-control">
+  
+          <label class="form-label mt-2">Email</label>
+          <input id="email_ospite" type="email" class="form-control">
+  
+        </div>
+  
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button class="btn btn-primary" onclick="confermaPrenotazione()">Conferma Prenotazione</button>
+        </div>
+  
+      </div>
+    </div>
+  </div>
+  
 
 <script>
 async function cercaDisponibilita() {
@@ -119,7 +155,9 @@ async function cercaDisponibilita() {
 
     // Se tutto è ok → fetch
     let res = await fetch(`http://localhost:3000/api/availability?check_in=${checkin}&check_out=${checkout}`);
-    let camere = await res.json();
+    ultimeCamereDisponibili = await res.json();
+    let camere = ultimeCamereDisponibili;
+
 
     let html = "";
     camere.forEach(c => {
@@ -135,6 +173,82 @@ async function cercaDisponibilita() {
 
     document.getElementById("risultati").innerHTML = html;
 }
+
+function apriPrenotazione(roomId) {
+    let checkin = document.getElementById("checkin").value;
+    let checkout = document.getElementById("checkout").value;
+
+    let dCheckin = new Date(checkin);
+    let dCheckout = new Date(checkout);
+
+    let notti = Math.ceil((dCheckout - dCheckin) / (1000 * 60 * 60 * 24));
+
+    let camera = ultimeCamereDisponibili.find(c => c.id === roomId);
+
+    let totale = camera.price_per_night * notti;
+
+    document.getElementById("riepilogo").innerHTML = `
+        <p><strong>Camera:</strong> ${camera.name}</p>
+        <p><strong>Check-in:</strong> ${checkin}</p>
+        <p><strong>Check-out:</strong> ${checkout}</p>
+        <p><strong>Notti:</strong> ${notti}</p>
+        <p><strong>Prezzo per notte:</strong> € ${camera.price_per_night}</p>
+        <p><strong>Totale soggiorno:</strong>
+           <span style="font-size:1.3em; color:#0d6efd;">€ ${totale}</span>
+        </p>
+    `;
+
+    cameraSelezionata = {
+        id: roomId,
+        checkin,
+        checkout,
+        notti,
+        totale
+    };
+
+    let modal = new bootstrap.Modal(document.getElementById("modalPrenota"));
+    modal.show();
+}
+
+async function confermaPrenotazione() {
+    if (!cameraSelezionata) {
+        alert("Errore: nessuna camera selezionata.");
+        return;
+    }
+
+    let nome = document.getElementById("nome_ospite").value.trim();
+    let email = document.getElementById("email_ospite").value.trim();
+
+    if (!nome || !email) {
+        alert("Per favore inserisci Nome ed Email.");
+        return;
+    }
+
+    let body = {
+        room_id: cameraSelezionata.id,
+        check_in: cameraSelezionata.checkin,
+        check_out: cameraSelezionata.checkout,
+        nome,
+        email
+    };
+
+    let res = await fetch("http://localhost:3000/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+
+    let result = await res.json();
+
+    if (result.success) {
+        alert("Prenotazione confermata! Ti aspettiamo 😊");
+        window.location.href = "index.html"; // torna alla home
+    } else {
+        alert("Errore: " + result.error);
+    }
+}
+
+
 document.getElementById("checkin").addEventListener("input", () => {
     document.getElementById("errore-date").style.display = "none";
 });
