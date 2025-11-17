@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prenota - 4 Seasons Guest House</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+
+    <h1 class="text-center mb-4">Prenota il tuo soggiorno</h1>
+
+    <!-- Form ricerca disponibilità -->
+    <div class="card p-4 shadow-sm mb-5">
+        <h4>Controlla disponibilità</h4>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Check-in</label>
+                <input type="date" id="checkin" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Check-out</label>
+                <input type="date" id="checkout" class="form-control">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-primary w-100" onclick="cercaDisponibilita()">Cerca</button>
+            </div>
+            <div id="errore-date" class="text-danger mt-3" style="display:none; font-weight:600;"></div>
+
+        </div>
+    </div>
+
+    <!-- Risultati disponibilità -->
+    <div id="risultati" class="row g-4"></div>
+
+</div>
+
+<!-- MODAL PRENOTAZIONE -->
+<div class="modal fade" id="modalPrenota" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Conferma prenotazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="room_id">
+
+                <div class="mb-3">
+                    <label class="form-label">Nome e Cognome</label>
+                    <input type="text" id="guest_name" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="guest_email" class="form-control">
+                </div>
+
+                <hr>
+                <h5>Riepilogo prenotazione</h5>
+                <div id="riepilogo" class="mt-2"></div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                <button class="btn btn-primary" onclick="confermaPrenotazione()">Conferma</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function cercaDisponibilita() {
+    let checkin = document.getElementById("checkin").value;
+    let checkout = document.getElementById("checkout").value;
+    let erroreBox = document.getElementById("errore-date");
+
+    // Reset messaggio
+    erroreBox.style.display = "none";
+    erroreBox.innerHTML = "";
+
+    // Controllo campi vuoti
+    if (!checkin || !checkout) {
+        erroreBox.innerHTML = "Per favore inserisci sia Check-in che Check-out.";
+        erroreBox.style.display = "block";
+        return;
+    }
+
+    let dCheckin = new Date(checkin);
+    let dCheckout = new Date(checkout);
+    let oggi = new Date();
+    oggi.setHours(0,0,0,0);
+
+    // Check-in nel passato
+    if (dCheckin < oggi) {
+        erroreBox.innerHTML = "⚠️ La data di Check-in non può essere nel passato.";
+        erroreBox.style.display = "block";
+        return;
+    }
+
+    // Check-out nel passato
+    if (dCheckout < oggi) {
+        erroreBox.innerHTML = "⚠️ La data di Check-out non può essere nel passato.";
+        erroreBox.style.display = "block";
+        return;
+    }
+
+    // Check-out prima del check-in
+    if (dCheckout <= dCheckin) {
+        erroreBox.innerHTML = "⚠️ La data di Check-out deve essere successiva al Check-in.";
+        erroreBox.style.display = "block";
+        return;
+    }
+
+    // Se tutto è ok → fetch
+    let res = await fetch(`http://localhost:3000/api/availability?check_in=${checkin}&check_out=${checkout}`);
+    let camere = await res.json();
+
+    let html = "";
+    camere.forEach(c => {
+        html += `
+            <div class="col-md-4">
+                <div class="card shadow-sm p-3">
+                    <h4>${c.name}</h4>
+                    <button class="btn btn-primary mt-3" onclick="apriPrenotazione(${c.id})">Prenota</button>
+                </div>
+            </div>
+        `;
+    });
+
+    document.getElementById("risultati").innerHTML = html;
+}
+document.getElementById("checkin").addEventListener("input", () => {
+    document.getElementById("errore-date").style.display = "none";
+});
+
+document.getElementById("checkout").addEventListener("input", () => {
+    document.getElementById("errore-date").style.display = "none";
+});
+
+
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>
